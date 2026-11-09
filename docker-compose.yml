@@ -1,0 +1,39 @@
+# ArenaPlant - runs on Windows + macOS via Docker Desktop (no Linux host needed).
+#
+#   docker compose up --build
+#   open http://localhost:8080          (plant UI)
+#   open http://localhost:8080/dev      (Developer Mode / Range Control Center)
+#
+# The Cyber-Arena agents connect to the target over the shared `arena-entry`
+# (attack surface) and `arena-evidence` (read-only) networks. Only your Tool
+# Gateway should join those. The developer/ground-truth surface is NOT on them.
+services:
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: sqlite:////data/arenaplant.db
+      DEV_TOKEN: ${DEV_TOKEN:-arena-dev-token}
+      EVIDENCE_TOKEN: ${EVIDENCE_TOKEN:-arena-evidence-token}
+    volumes:
+      - plantdata:/data
+    networks: [arena-internal, arena-entry, arena-evidence]
+    ports:
+      - "5020:5020"   # Modbus/TCP (PLC-1 unit 1, SIS unit 2) for protocol clients
+
+  web:
+    build: ./frontend
+    depends_on: [backend]
+    networks: [arena-internal]
+    ports:
+      - "8080:80"
+
+volumes:
+  plantdata:
+
+networks:
+  arena-internal:
+  # Shared, external-facing networks for the Cyber-Arena Tool Gateway to join.
+  arena-entry:
+    name: arena-entry
+  arena-evidence:
+    name: arena-evidence
